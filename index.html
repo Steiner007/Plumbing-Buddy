@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Blueprint — Plumbing Layout</title>
+<title>ASR Blueprint Pro</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 html,body{width:100%;height:100dvh;overflow:hidden;font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none;background:#f2f2f7}
@@ -4429,6 +4429,8 @@ const PRICE_DATA = [
 
 // ── Cart state ──
 let cart = []; // [{ idx, name, cat, unit, price, qty }]
+let laborHoursVal = '';
+let laborTechsVal = '1';
 
 function addToCart(idx) {
   saveUndo(); // not really undo but save state for safety
@@ -4598,17 +4600,70 @@ function renderCart() {
     el.appendChild(sec);
   });
 
-  // Grand total
+  // ── Billing breakdown ──
+  const tax         = grandTotal * 0.06;
+  const withTax     = grandTotal + tax;
+  const totalBill   = withTax * 1.5;
+
+  const hourlyRate  = laborTechsVal === '2' ? 225 : 175;
+  const laborHours  = parseFloat(laborHoursVal) || 0;
+  const laborCost   = laborHours * hourlyRate;
+  const grandBill   = totalBill + laborCost;
+
+  const row = (label, val, big, color) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:${big?'10px 0 6px':'5px 0'};${big?'border-top:2px solid #f0f0f0;margin-top:4px':'border-bottom:1px solid #f8f8f8'}">
+      <span style="font-size:${big?14:11}px;font-weight:${big?800:600};color:${big?'#1c1c1e':'#666'}">${label}</span>
+      <span style="font-size:${big?16:12}px;font-weight:800;color:${color||'#1c1c1e'}">${val}</span>
+    </div>`;
+
   totEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span style="font-size:12px;font-weight:700;color:#666">Items</span>
-      <span style="font-size:12px;font-weight:700;color:#1c1c1e">${cart.reduce((s,c)=>s+c.qty,0)}</span>
+    <div style="font-size:10px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Quote Summary</div>
+    ${row('Materials subtotal', '$'+grandTotal.toFixed(2))}
+    ${row('Tax (6%)', '$'+tax.toFixed(2))}
+    ${row('Materials + Tax', '$'+withTax.toFixed(2))}
+    ${row('Total Bill (×1.5 markup)', '$'+totalBill.toFixed(2), false, '#b45309')}
+
+    <div style="margin:14px 0 8px;font-size:10px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px">Labor</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">Hours</div>
+        <input id="laborHoursInput" type="number" min="0" step="0.5" value="${laborHoursVal}"
+          placeholder="0"
+          oninput="laborHoursVal=this.value;renderCart()"
+          style="width:100%;padding:10px;border:2px solid #e5e5ea;border-radius:10px;font-size:16px;font-weight:800;font-family:inherit;text-align:center;color:#1c1c1e;outline:none;background:#fff"
+          onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e5e5ea'">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">Techs</div>
+        <div style="display:flex;border:2px solid #e5e5ea;border-radius:10px;overflow:hidden">
+          <button onclick="setTechs('1')"
+            style="flex:1;padding:10px;border:none;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;background:${laborTechsVal==='1'?'#2563eb':'#f5f5f5'};color:${laborTechsVal==='1'?'#fff':'#666'}">
+            1<br><span style="font-size:9px;font-weight:600">$175/hr</span>
+          </button>
+          <button onclick="setTechs('2')"
+            style="flex:1;padding:10px;border:none;border-left:1px solid #e5e5ea;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;background:${laborTechsVal==='2'?'#2563eb':'#f5f5f5'};color:${laborTechsVal==='2'?'#fff':'#666'}">
+            2<br><span style="font-size:9px;font-weight:600">$225/hr</span>
+          </button>
+        </div>
+      </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:2px solid #f0f0f0">
-      <span style="font-size:15px;font-weight:800;color:#1c1c1e">Total</span>
-      <span style="font-size:20px;font-weight:800;color:#b45309">$${grandTotal.toFixed(2)}</span>
+
+    ${laborHours > 0 ? row('Labor ('+laborHours+'h × $'+hourlyRate+'/hr)', '$'+laborCost.toFixed(2), false, '#1e3a8a') : '<div style="font-size:11px;color:#aaa;text-align:center;padding:4px 0">Enter hours above to calculate labor</div>'}
+
+    <div style="background:linear-gradient(135deg,#b45309,#92400e);border-radius:12px;padding:14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7)">GRAND TOTAL</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px">Materials + Labor</div>
+      </div>
+      <div style="font-size:26px;font-weight:800;color:#fff">$${grandBill.toFixed(2)}</div>
     </div>
   `;
+}
+
+function setTechs(n) {
+  laborTechsVal = n;
+  renderCart();
 }
 
 function initInstall() {
